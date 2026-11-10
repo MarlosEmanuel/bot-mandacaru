@@ -22,13 +22,11 @@ import java.time.format.DateTimeFormatter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/** Slash commands (/ponto, /ranking), botões do painel e eventos de voz. */
 public final class PontoListener extends ListenerAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(PontoListener.class);
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd/MM");
 
-    /** O que um comando/botão produz: novo painel + texto curto para respostas ephemeral. */
     private record View(MessageEmbed embed, List<ActionRow> rows, String text) {
     }
 
@@ -39,8 +37,6 @@ public final class PontoListener extends ListenerAdapter {
         this.config = config;
         this.service = service;
     }
-
-    // ------------------------------------------------------------ slash commands
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
@@ -76,7 +72,6 @@ public final class PontoListener extends ListenerAdapter {
         Member member = event.getMember();
         long userId = member.getIdLong();
 
-        // Já tem ponto aberto: reenvia o painel atual (útil se a mensagem antiga se perdeu)
         var st = service.status(guildId, userId);
         if (st.isEmpty()) {
             requireInCall(member);
@@ -89,8 +84,6 @@ public final class PontoListener extends ListenerAdapter {
                 .queue(hook -> hook.retrieveOriginal().queue(msg ->
                         service.savePanel(guildId, userId, msg.getChannelIdLong(), msg.getIdLong())));
     }
-
-    // ------------------------------------------------------------------ botões
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
@@ -134,7 +127,6 @@ public final class PontoListener extends ListenerAdapter {
         }
     }
 
-    /** Executa pausar/retomar/encerrar e devolve o novo painel. */
     private View perform(String action, long guildId, Member member) {
         long userId = member.getIdLong();
         switch (action) {
@@ -186,8 +178,6 @@ public final class PontoListener extends ListenerAdapter {
                     e.getPermission(), ref.channelId(), userId);
         }
     }
-
-    // ----------------------------------------------------------------- ranking
 
     private void handleRanking(SlashCommandInteractionEvent event) {
         OptionMapping opt = event.getOption("semanas_atras");
@@ -248,8 +238,6 @@ public final class PontoListener extends ListenerAdapter {
             event.reply("Erro interno. Tente novamente.").setEphemeral(true).queue();
         }
     }
-
-    // ------------------------------------------------------------------- voz
 
     private boolean allowedGuild(long guildId) {
         return config.guildId().isEmpty() || config.guildId().getAsLong() == guildId;

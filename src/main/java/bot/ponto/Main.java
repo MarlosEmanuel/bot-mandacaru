@@ -38,7 +38,6 @@ public final class Main {
         Database db = new Database(config.dbPath());
         PontoService service = new PontoService(db, clock, config.zone());
 
-        // Recuperação após queda: fecha intervalos abertos no último heartbeat e pausa as sessões.
         int recovered = service.recoverFromHeartbeat();
         if (recovered > 0) {
             log.warn("{} sessão(ões) pausada(s) após reinício (tempo offline não contado)", recovered);
@@ -64,7 +63,7 @@ public final class Main {
                 .setMemberCachePolicy(MemberCachePolicy.VOICE)
                 .addEventListeners(new PontoListener(config, service));
         if (config.welcomeChannelId().isPresent()) {
-            // intent privilegiado: ative "Server Members Intent" no Developer Portal
+
             builder.enableIntents(GatewayIntent.GUILD_MEMBERS)
                     .addEventListeners(new WelcomeListener(config));
         }
@@ -78,16 +77,16 @@ public final class Main {
                 System.exit(1);
                 return;
             }
-            guild.updateCommands().addCommands(commands).queue(); // aparece na hora
+            guild.updateCommands().addCommands(commands).queue();
         } else {
             jda.updateCommands().addCommands(commands).queue();
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                service.heartbeat(); // marca o instante da parada para a recuperação
+                service.heartbeat();
             } catch (RuntimeException ignored) {
-                // melhor esforço
+
             }
             scheduler.shutdownNow();
             jda.shutdown();

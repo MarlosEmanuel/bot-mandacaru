@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PontoServiceTest {
 
-    static final ZoneId ZONE = ZoneId.of("America/Fortaleza"); // UTC-3, sem horário de verão
+    static final ZoneId ZONE = ZoneId.of("America/Fortaleza");
     static final long GUILD = 1L;
     static final long ALICE = 10L;
     static final long BOB = 20L;
@@ -29,7 +29,6 @@ class PontoServiceTest {
     MutableClock clock;
     PontoService service;
 
-    /** Terça 2026-11-10 12:00 em Fortaleza; a semana atual começa domingo 2026-11-08 00:00. */
     static Instant at(String localDateTime) {
         return LocalDateTime.parse(localDateTime).atZone(ZONE).toInstant();
     }
@@ -59,14 +58,12 @@ class PontoServiceTest {
         });
     }
 
-    // ------------------------------------------------------------------ sessão
-
     @Test
     void pausaERetomadaSomamCorretamente() {
         service.iniciar(GUILD, ALICE);
         clock.advance(min(10));
         service.pausar(GUILD, ALICE);
-        clock.advance(min(5)); // pausado: não conta
+        clock.advance(min(5));
         assertEquals(min(10).toMillis(), service.status(GUILD, ALICE).orElseThrow().sessionMs());
         service.retomar(GUILD, ALICE);
         clock.advance(min(20));
@@ -97,7 +94,7 @@ class PontoServiceTest {
     void soUmaSessaoAbertaPorPessoa() {
         service.iniciar(GUILD, ALICE);
         assertThrows(PontoException.class, () -> service.iniciar(GUILD, ALICE));
-        service.iniciar(GUILD, BOB); // outra pessoa pode
+        service.iniciar(GUILD, BOB);
     }
 
     @Test
@@ -127,16 +124,14 @@ class PontoServiceTest {
         assertEquals(min(7).toMillis(), p.sessionMs());
         assertTrue(service.status(GUILD, BOB).isEmpty());
 
-        service.iniciar(GUILD, ALICE); // pode iniciar de novo depois
+        service.iniciar(GUILD, ALICE);
         assertFalse(service.status(GUILD, ALICE).isEmpty());
     }
-
-    // ----------------------------------------------------------------- ranking
 
     @Test
     void rankingSeparaConsolidadoEEmAndamento() {
         service.iniciar(GUILD, ALICE);
-        clock.advance(min(40)); // Alice segue rodando
+        clock.advance(min(40));
         service.iniciar(GUILD, BOB);
         clock.advance(min(10));
         service.encerrar(GUILD, BOB);
@@ -144,13 +139,13 @@ class PontoServiceTest {
 
         List<PontoService.RankEntry> top = service.ranking(GUILD, 0);
         assertEquals(2, top.size());
-        // ordenado por consolidado: Bob (10min fechados) à frente de Alice (só em andamento)
+
         assertEquals(BOB, top.get(0).userId());
         assertEquals(min(10).toMillis(), top.get(0).consolidatedMs());
         assertEquals(0, top.get(0).runningMs());
         assertEquals(ALICE, top.get(1).userId());
         assertEquals(0, top.get(1).consolidatedMs());
-        assertEquals(min(55).toMillis(), top.get(1).runningMs()); // intervalo aberto contado até agora
+        assertEquals(min(55).toMillis(), top.get(1).runningMs());
         assertEquals(min(55).toMillis(), top.get(1).totalMs());
     }
 
@@ -176,15 +171,12 @@ class PontoServiceTest {
         assertEquals(15, service.ranking(GUILD, 0).size());
     }
 
-    // ------------------------------------------------- virada de semana (domingo)
-
     @Test
     void sessaoAtravessandoDomingoEhRecortadaNoRanking() {
-        clock.set(at("2026-11-07T22:00:00")); // sábado 22:00
+        clock.set(at("2026-11-07T22:00:00"));
         service.iniciar(GUILD, ALICE);
-        clock.set(at("2026-11-08T01:00:00")); // domingo 01:00, SEM rollover ainda
+        clock.set(at("2026-11-08T01:00:00"));
 
-        // recorte puro por SQL: 2h na semana passada, 1h na atual
         assertEquals(min(120).toMillis(), service.ranking(GUILD, 1).get(0).totalMs());
         assertEquals(min(60).toMillis(), service.ranking(GUILD, 0).get(0).totalMs());
     }
@@ -201,7 +193,7 @@ class PontoServiceTest {
 
         var st = service.status(GUILD, ALICE).orElseThrow();
         assertEquals(State.RUNNING, st.state());
-        assertEquals(min(60).toMillis(), st.sessionMs()); // nova sessão conta só a partir de 00:00
+        assertEquals(min(60).toMillis(), st.sessionMs());
         assertEquals(min(60).toMillis(), st.weekMs());
         assertEquals(min(120).toMillis(), service.ranking(GUILD, 1).get(0).totalMs());
         assertEquals(2, sessionCount());
@@ -228,7 +220,7 @@ class PontoServiceTest {
         assertEquals(0, st.weekMs());
         assertEquals(min(60).toMillis(), service.ranking(GUILD, 1).get(0).totalMs());
 
-        service.retomar(GUILD, ALICE); // continua funcionando normalmente
+        service.retomar(GUILD, ALICE);
         clock.advance(min(20));
         assertEquals(min(20).toMillis(), service.status(GUILD, ALICE).orElseThrow().sessionMs());
     }
@@ -247,7 +239,7 @@ class PontoServiceTest {
         long sessions = sessionCount();
         long aliceWeek = service.ranking(GUILD, 0).get(0).totalMs();
 
-        assertEquals(0, service.rollover(limit)); // segunda vez não mexe em nada
+        assertEquals(0, service.rollover(limit));
         assertEquals(sessions, sessionCount());
         assertEquals(aliceWeek, service.ranking(GUILD, 0).get(0).totalMs());
         assertEquals(State.RUNNING, service.status(GUILD, ALICE).orElseThrow().state());
@@ -255,12 +247,10 @@ class PontoServiceTest {
 
     @Test
     void rolloverIgnoraSessoesIniciadasDepoisDoLimite() {
-        service.iniciar(GUILD, ALICE); // terça, depois do domingo
+        service.iniciar(GUILD, ALICE);
         assertEquals(0, service.rollover(at("2026-11-08T00:00:00").toEpochMilli()));
         assertEquals(1, sessionCount());
     }
-
-    // --------------------------------------------------------------- heartbeat
 
     @Test
     void recuperacaoAposOfflineFechaNoUltimoHeartbeat(@TempDir Path dir) {
@@ -269,10 +259,10 @@ class PontoServiceTest {
             var s1 = new PontoService(d1, clock, ZONE);
             s1.iniciar(GUILD, ALICE);
             clock.advance(min(10));
-            s1.heartbeat();          // último sinal de vida
-            clock.advance(min(5));   // bot cai 5 min antes de reiniciar...
+            s1.heartbeat();
+            clock.advance(min(5));
         }
-        clock.advance(Duration.ofHours(3)); // ...e fica offline por 3h
+        clock.advance(Duration.ofHours(3));
 
         try (Database d2 = new Database(file)) {
             var s2 = new PontoService(d2, clock, ZONE);
@@ -280,9 +270,9 @@ class PontoServiceTest {
 
             var st = s2.status(GUILD, ALICE).orElseThrow();
             assertEquals(State.PAUSED, st.state());
-            assertEquals(min(10).toMillis(), st.sessionMs()); // só até o heartbeat
+            assertEquals(min(10).toMillis(), st.sessionMs());
 
-            s2.retomar(GUILD, ALICE); // pode voltar a trabalhar normalmente
+            s2.retomar(GUILD, ALICE);
             clock.advance(min(5));
             assertEquals(min(15).toMillis(), s2.status(GUILD, ALICE).orElseThrow().sessionMs());
         }
@@ -296,15 +286,12 @@ class PontoServiceTest {
         assertEquals(0, service.recoverFromHeartbeat());
     }
 
-    // ------------------------------------------------------------------ utilitários
-
     @Test
     void janelasDeSemana() {
         WeekUtil.Window w = WeekUtil.window(at("2026-11-10T12:00:00").toEpochMilli(), ZONE, 0);
         assertEquals(at("2026-11-08T00:00:00").toEpochMilli(), w.startMs());
         assertEquals(at("2026-11-15T00:00:00").toEpochMilli(), w.endMs());
 
-        // exatamente domingo 00:00 já pertence à nova semana
         WeekUtil.Window sun = WeekUtil.window(at("2026-11-08T00:00:00").toEpochMilli(), ZONE, 0);
         assertEquals(at("2026-11-08T00:00:00").toEpochMilli(), sun.startMs());
 

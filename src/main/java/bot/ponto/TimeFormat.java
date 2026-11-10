@@ -1,6 +1,5 @@
 package bot.ponto;
 
-/** Formatação de durações, ex.: 2h 15min 03s. */
 public final class TimeFormat {
 
     private TimeFormat() {
@@ -20,7 +19,6 @@ public final class TimeFormat {
         return s + "s";
     }
 
-    /** Formato curto sem segundos, ex.: 7h 3m ou 45m. */
     public static String compact(long ms) {
         long m = Math.max(0, ms) / 60_000;
         long h = m / 60;

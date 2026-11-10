@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
 
-/** Mensagem de boas-vindas quando alguém entra no servidor (precisa do intent GUILD_MEMBERS). */
 public final class WelcomeListener extends ListenerAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(WelcomeListener.class);
@@ -44,7 +43,7 @@ public final class WelcomeListener extends ListenerAdapter {
                         + "Atualmente estamos com `" + guild.getMemberCount() + "` membros.")
                 .setThumbnail(member.getEffectiveAvatarUrl())
                 .build();
-        // a menção fora do embed é o que notifica o membro
+
         channel.sendMessage(member.getAsMention()).setEmbeds(embed).queue(ok -> { },
                 err -> log.warn("Não consegui enviar a boas-vindas: {}", err.getMessage()));
     }

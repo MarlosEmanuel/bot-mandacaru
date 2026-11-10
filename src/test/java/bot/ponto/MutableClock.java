@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-/** Relógio falso para testes. */
 final class MutableClock extends Clock {
 
     private Instant now;

@@ -4,11 +4,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-
-/**
- * Acesso JDBC puro ao SQLite. Uma única conexão, com todas as operações serializadas
- * (synchronized): suficiente para um bot pequeno e evita "database is locked".
- */
 public final class Database implements AutoCloseable {
 
     @FunctionalInterface
@@ -18,7 +13,6 @@ public final class Database implements AutoCloseable {
 
     private final Connection conn;
 
-    /** @param path caminho do arquivo, ou ":memory:" para banco em memória (testes). */
     public Database(String path) {
         try {
             conn = DriverManager.getConnection("jdbc:sqlite:" + path);
@@ -52,7 +46,7 @@ public final class Database implements AutoCloseable {
                     end_ms     INTEGER
                 )""",
                 "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-                // mensagem do painel de cada pessoa (para atualizar quando o ponto encerra por fora)
+
                 """
                 CREATE TABLE IF NOT EXISTS panels (
                     guild_id   INTEGER NOT NULL,
@@ -61,7 +55,7 @@ public final class Database implements AutoCloseable {
                     message_id INTEGER NOT NULL,
                     PRIMARY KEY (guild_id, user_id)
                 )""",
-                // Só uma sessão não encerrada por pessoa (por guild)
+
                 "CREATE UNIQUE INDEX IF NOT EXISTS ux_sessions_open ON sessions(guild_id, user_id) WHERE state != 'CLOSED'",
                 "CREATE INDEX IF NOT EXISTS ix_intervals_session ON intervals(session_id)",
                 "CREATE INDEX IF NOT EXISTS ix_intervals_start ON intervals(start_ms)"
@@ -73,7 +67,6 @@ public final class Database implements AutoCloseable {
         }
     }
 
-    /** Executa o trabalho em uma transação; faz rollback em qualquer exceção. */
     public synchronized <T> T tx(SqlWork<T> work) {
         try {
             conn.setAutoCommit(false);
@@ -85,7 +78,7 @@ public final class Database implements AutoCloseable {
                 try {
                     conn.rollback();
                 } catch (SQLException ignored) {
-                    // mantém a exceção original
+
                 }
                 throw t;
             } finally {
@@ -101,7 +94,7 @@ public final class Database implements AutoCloseable {
         try {
             conn.close();
         } catch (SQLException ignored) {
-            // nada a fazer
+
         }
     }
 }

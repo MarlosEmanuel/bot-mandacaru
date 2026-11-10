@@ -5,7 +5,6 @@ import java.time.ZoneId;
 import java.util.OptionalLong;
 import java.util.function.Function;
 
-/** Configuração lida de variáveis de ambiente. */
 public record Config(
         String token,
         long voiceChannelId,

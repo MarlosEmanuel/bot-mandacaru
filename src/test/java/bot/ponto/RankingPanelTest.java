@@ -16,7 +16,7 @@ class RankingPanelTest {
     static List<RankEntry> entries(int n) {
         List<RankEntry> l = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            l.add(new RankEntry(1000 + i, (n - i) * 60 * MIN, 0)); // decrescente
+            l.add(new RankEntry(1000 + i, (n - i) * 60 * MIN, 0));
         }
         return l;
     }
@@ -24,7 +24,7 @@ class RankingPanelTest {
     @Test
     void paginaDoisMostraPosicoesOnzeEmDiante() {
         var all = entries(26);
-        var built = RankingPanel.build(all, 1010, 0, 1, "08/11 a 14/11"); // usuário na 11ª posição
+        var built = RankingPanel.build(all, 1010, 0, 1, "08/11 a 14/11");
         String d = built.embed().getDescription();
         assertTrue(d.contains("11º <@1010>"));
         assertTrue(d.contains("20º <@1019>"));

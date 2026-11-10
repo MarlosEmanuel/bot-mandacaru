@@ -8,7 +8,6 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import java.awt.Color;
 import java.util.List;
 
-/** Painel paginado do ranking (embed + botões « ‹ › » Exportar). */
 final class RankingPanel {
 
     static final String PREFIX = "rk";
@@ -29,7 +28,6 @@ final class RankingPanel {
         return Math.max(1, (entries + PAGE_SIZE - 1) / PAGE_SIZE);
     }
 
-    /** Id: rk:acao:semanasAtras:paginaAtual:idDeQuemPediu */
     static String id(String action, int weeksAgo, int page, long requesterId) {
         return PREFIX + ":" + action + ":" + weeksAgo + ":" + page + ":" + requesterId;
     }
@@ -101,7 +99,6 @@ final class RankingPanel {
         return sb.toString();
     }
 
-    /** CSV do ranking completo (para o botão Exportar). */
     static String csv(List<PontoService.RankEntry> all) {
         StringBuilder sb = new StringBuilder("posicao,usuario_id,consolidado,em_andamento\n");
         for (int i = 0; i < all.size(); i++) {

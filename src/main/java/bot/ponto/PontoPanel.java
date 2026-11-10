@@ -8,7 +8,6 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import java.awt.Color;
 import java.util.List;
 
-/** Monta o painel "Bate-Ponto" (embed + botões). */
 final class PontoPanel {
 
     static final String PREFIX = "ponto";
@@ -25,7 +24,6 @@ final class PontoPanel {
         return PREFIX + ":" + action + ":" + userId;
     }
 
-    /** Painel de um ponto aberto (rodando ou pausado). */
     static MessageEmbed open(long userId, PontoService.Status s) {
         boolean running = s.state() == PontoService.State.RUNNING;
         return new EmbedBuilder()
@@ -38,7 +36,6 @@ final class PontoPanel {
                 .build();
     }
 
-    /** Painel de um ponto encerrado. */
     static MessageEmbed closed(long userId, PontoService.Summary s) {
         return new EmbedBuilder()
                 .setTitle("Bate-Ponto")
@@ -53,7 +50,6 @@ final class PontoPanel {
                 .build();
     }
 
-    /** Botões do painel aberto; ponto encerrado não tem botões. */
     static List<ActionRow> buttons(long userId, PontoService.State state) {
         if (state == PontoService.State.CLOSED) {
             return List.of();

@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Regras do registro de ponto. Todas as operações multi-linha rodam em transação. */
 public class PontoService {
 
     public enum State { RUNNING, PAUSED, CLOSED }
@@ -22,10 +21,6 @@ public class PontoService {
     public record Summary(long startedAt, long endedAt, long sessionMs, long weekMs) {
     }
 
-    /**
-     * @param consolidatedMs tempo de intervalos já fechados (critério de ordenação)
-     * @param runningMs      tempo do intervalo aberto agora (só na semana atual)
-     */
     public record RankEntry(long userId, long consolidatedMs, long runningMs) {
         public long totalMs() {
             return consolidatedMs + runningMs;
@@ -44,8 +39,6 @@ public class PontoService {
         this.clock = clock;
         this.zone = zone;
     }
-
-    // ---------------------------------------------------------------- comandos
 
     public void iniciar(long guildId, long userId) {
         long now = clock.millis();
@@ -91,7 +84,6 @@ public class PontoService {
                 .orElseThrow(() -> new PontoException("Você não tem ponto aberto. Use `/ponto iniciar`."));
     }
 
-    /** Encerra o ponto (RUNNING ou PAUSED) se houver um aberto; vazio caso contrário. */
     public Optional<Summary> encerrarSeAberto(long guildId, long userId) {
         long now = clock.millis();
         WeekUtil.Window w = WeekUtil.window(now, zone, 0);
@@ -125,13 +117,10 @@ public class PontoService {
         }));
     }
 
-    // ----------------------------------------------------------------- ranking
-
     public WeekUtil.Window week(int weeksAgo) {
         return WeekUtil.window(clock.millis(), zone, weeksAgo);
     }
 
-    /** Ranking completo da semana (0 = atual, 1 = anterior, ...), ordenado por tempo consolidado. */
     public List<RankEntry> ranking(long guildId, int weeksAgo) {
         long now = clock.millis();
         WeekUtil.Window w = WeekUtil.window(now, zone, weeksAgo);
@@ -146,7 +135,7 @@ public class PontoService {
 
     private static List<RankEntry> totals(Connection c, long guildId, Long userId, WeekUtil.Window w,
                                           long now, int limit) throws SQLException {
-        // intervalo aberto só é "em andamento" se a janela ainda não terminou (semana atual)
+
         int current = now < w.endMs() ? 1 : 0;
         String sql = "SELECT s.user_id, "
                 + "SUM(MIN(COALESCE(i.end_ms, ?), ?) - MAX(i.start_ms, ?)) AS total_ms, "
@@ -185,15 +174,6 @@ public class PontoService {
         }
     }
 
-    // ---------------------------------------------------------------- rollover
-
-    /**
-     * Virada de semana. Para cada sessão não encerrada iniciada antes de {@code limitMs}:
-     * fecha a sessão (e os intervalos que atravessam o limite) em limitMs e abre uma nova
-     * sessão no mesmo estado. Idempotente: sessões novas começam em limitMs e não são tocadas.
-     *
-     * @return quantas sessões foram viradas
-     */
     public int rollover(long limitMs) {
         return db.tx(c -> {
             record Row(long id, long guild, long user, String state) {
@@ -209,7 +189,7 @@ public class PontoService {
                 }
             }
             for (Row r : rows) {
-                // fecha primeiro: o índice único parcial só admite uma sessão aberta por pessoa
+
                 try (PreparedStatement ps = c.prepareStatement(
                         "UPDATE sessions SET state='CLOSED', ended_at=? WHERE id=?")) {
                     ps.setLong(1, limitMs);
@@ -218,8 +198,7 @@ public class PontoService {
                 }
                 long newId = insertSession(c, r.guild(), r.user(), State.valueOf(r.state()), limitMs);
 
-                // intervalos que atravessam o limite (abertos ou fechados depois dele): divide em dois
-                List<long[]> straddling = new ArrayList<>(); // {id, end_ms ou -1}
+                List<long[]> straddling = new ArrayList<>();
                 try (PreparedStatement ps = c.prepareStatement(
                         "SELECT id, end_ms FROM intervals WHERE session_id=? AND start_ms < ? "
                                 + "AND (end_ms IS NULL OR end_ms > ?)")) {
@@ -230,7 +209,7 @@ public class PontoService {
                         while (rs.next()) {
                             long id = rs.getLong(1);
                             long end = rs.getLong(2);
-                            boolean open = rs.wasNull(); // logo após ler end_ms
+                            boolean open = rs.wasNull();
                             straddling.add(new long[]{id, open ? -1 : end});
                         }
                     }
@@ -243,7 +222,7 @@ public class PontoService {
                     }
                     insertInterval(c, newId, limitMs, i[1] < 0 ? null : i[1]);
                 }
-                // intervalos que já começaram depois do limite (corrida de milissegundos) vão para a nova sessão
+
                 try (PreparedStatement ps = c.prepareStatement(
                         "UPDATE intervals SET session_id=? WHERE session_id=? AND start_ms >= ?")) {
                     ps.setLong(1, newId);
@@ -256,9 +235,6 @@ public class PontoService {
         });
     }
 
-    // ------------------------------------------------------------------ painéis
-
-    /** Onde está a mensagem do painel de uma pessoa. */
     public record PanelRef(long channelId, long messageId) {
     }
 
@@ -302,8 +278,6 @@ public class PontoService {
         });
     }
 
-    // --------------------------------------------------------------- heartbeat
-
     public void heartbeat() {
         long now = clock.millis();
         db.tx(c -> {
@@ -317,12 +291,6 @@ public class PontoService {
         });
     }
 
-    /**
-     * Chamar uma vez na inicialização: fecha intervalos abertos no último heartbeat (o tempo
-     * offline não conta) e pausa essas sessões.
-     *
-     * @return quantas sessões foram pausadas
-     */
     public int recoverFromHeartbeat() {
         long now = clock.millis();
         return db.tx(c -> {
@@ -333,7 +301,7 @@ public class PontoService {
                     hb = Long.parseLong(rs.getString(1));
                 }
             }
-            List<long[]> open = new ArrayList<>(); // {interval id, session id, start}
+            List<long[]> open = new ArrayList<>();
             try (Statement st = c.createStatement();
                  ResultSet rs = st.executeQuery("SELECT id, session_id, start_ms FROM intervals WHERE end_ms IS NULL")) {
                 while (rs.next()) {
@@ -356,8 +324,6 @@ public class PontoService {
             return open.size();
         });
     }
-
-    // ----------------------------------------------------------------- helpers
 
     private static String label(State s) {
         return s == State.RUNNING ? "em andamento" : "pausado";

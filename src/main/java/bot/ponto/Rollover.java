@@ -8,7 +8,6 @@ import java.time.ZoneId;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** Agenda a virada de semana para todo domingo 00:00 (na zona configurada). */
 public final class Rollover {
 
     private static final Logger log = LoggerFactory.getLogger(Rollover.class);
@@ -25,7 +24,6 @@ public final class Rollover {
         this.executor = executor;
     }
 
-    /** Cobre uma virada perdida com o bot offline e agenda a próxima. */
     public void start() {
         int n = service.rollover(WeekUtil.window(clock.millis(), zone, 0).startMs());
         if (n > 0) {
@@ -36,17 +34,17 @@ public final class Rollover {
 
     private void scheduleNext() {
         long now = clock.millis();
-        long target = WeekUtil.nextWeekStartMs(now, zone); // recalculado a cada vez (sem período fixo de 7 dias)
+        long target = WeekUtil.nextWeekStartMs(now, zone);
         executor.schedule(() -> fire(target), Math.max(0, target - now), TimeUnit.MILLISECONDS);
     }
 
     private void fire(long target) {
-        if (clock.millis() < target) { // disparou cedo (relógio ajustado): espera de novo
+        if (clock.millis() < target) {
             scheduleNext();
             return;
         }
         try {
-            int n = service.rollover(target); // fecha exatamente em 00:00, não no instante do disparo
+            int n = service.rollover(target);
             log.info("Virada de semana: {} sessão(ões) viradas", n);
         } catch (RuntimeException e) {
             log.error("Falha no rollover; nova tentativa em 30s", e);
