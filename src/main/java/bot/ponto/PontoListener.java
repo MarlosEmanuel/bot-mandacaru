@@ -1,6 +1,7 @@
 package bot.ponto;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.entities.Member;
@@ -46,6 +47,10 @@ public final class PontoListener extends ListenerAdapter {
         }
         if (!allowedGuild(event.getGuild().getIdLong())) {
             event.reply("Este bot não está configurado para este servidor.").setEphemeral(true).queue();
+            return;
+        }
+        if (event.getName().equals("clear")) {
+            handleClear(event);
             return;
         }
         var onlyIn = event.getName().equals("ponto") ? config.pontoChannelId() : config.rankingChannelId();
@@ -177,6 +182,46 @@ public final class PontoListener extends ListenerAdapter {
                     + "Dê ao bot: Ver canal, Enviar mensagens, Inserir links e Ver histórico de mensagens.",
                     e.getPermission(), ref.channelId(), userId);
         }
+    }
+
+    private void handleClear(SlashCommandInteractionEvent event) {
+        if (!event.getMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_MANAGE)) {
+            event.reply("Você precisa da permissão Gerenciar mensagens.").setEphemeral(true).queue();
+            return;
+        }
+        var channel = event.getChannel();
+        OptionMapping opt = event.getOption("quantidade");
+        long limit = opt == null ? Long.MAX_VALUE : opt.getAsLong();
+        event.deferReply(true).queue();
+        var cutoff = java.time.OffsetDateTime.now().minusDays(14).plusMinutes(5);
+        java.util.List<net.dv8tion.jda.api.entities.Message> toDelete = new java.util.ArrayList<>();
+        channel.getIterableHistory().forEachAsync(m -> {
+            if (m.getTimeCreated().isBefore(cutoff)) {
+                return false;
+            }
+            toDelete.add(m);
+            return toDelete.size() < limit;
+        }).whenComplete((ok, err) -> {
+            if (err != null) {
+                log.error("Erro ao ler histórico para /clear", err);
+                event.getHook().editOriginal("Não consegui ler as mensagens do canal. Verifique as permissões do bot.").queue();
+                return;
+            }
+            if (toDelete.isEmpty()) {
+                event.getHook().editOriginal("Não há mensagens para apagar.").queue();
+                return;
+            }
+            var futures = channel.purgeMessages(toDelete);
+            java.util.concurrent.CompletableFuture.allOf(futures.toArray(new java.util.concurrent.CompletableFuture[0]))
+                    .whenComplete((r, e) -> {
+                        if (e != null) {
+                            log.error("Erro ao apagar mensagens", e);
+                            event.getHook().editOriginal("Erro ao apagar algumas mensagens.").queue();
+                        } else {
+                            event.getHook().editOriginal("🧹 " + toDelete.size() + " mensagens apagadas.").queue();
+                        }
+                    });
+        });
     }
 
     private void handleRanking(SlashCommandInteractionEvent event) {

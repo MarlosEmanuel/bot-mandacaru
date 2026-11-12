@@ -2,8 +2,10 @@ package bot.ponto;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -102,6 +104,11 @@ public final class Main {
                 Commands.slash("ranking", "Top 10 da semana")
                         .setContexts(InteractionContextType.GUILD)
                         .addOptions(new OptionData(OptionType.INTEGER, "semanas_atras",
-                                "Quantas semanas atrás (0 = semana atual)", false).setMinValue(0)));
+                                "Quantas semanas atrás (0 = semana atual)", false).setMinValue(0)),
+                Commands.slash("clear", "Apaga mensagens deste canal")
+                        .setContexts(InteractionContextType.GUILD)
+                        .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MESSAGE_MANAGE))
+                        .addOptions(new OptionData(OptionType.INTEGER, "quantidade",
+                                "Quantas mensagens apagar (vazio = todas)", false).setMinValue(1)));
     }
 }
